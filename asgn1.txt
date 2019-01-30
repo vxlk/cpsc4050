@@ -1,0 +1,34 @@
+
+4050/6050
+Assignment 1
+Lines, colors, and curves
+
+Description
+
+In this assignment you will write a simple paint program that can draw lines and curves with different colors. Your program may use DDA or Midpoint to draw lines and will use cubic parametric Bezier curves to define curves. You will need to write the algorithms for the lines and Bezier curves based on the ones discussed in class. The program will be an interactive tool that uses a mouse to draw lines with two clicks and interprets inputs from the mouse as control points for the curves.
+
+For lines, the (two) mouse inputs will represent the beginning and end of each line.
+
+For curves, your program will interpret the mouse input as control points for a cubic Bezier curve (i.e. it needs exactly 4 points). A four-point sequence of mouse clicks will be used in the order received to describe a curve. Then, to scan convert the curves, you will write a rasterizing algorithm that approximates the curve using line segments (which can then draw using your DDA line algorithm from above).
+
+For the color, there are several options. First, the simplest method is to pick the colors of the end and start of the line or curve at random. Then, the program will interpolate the colors. As an example, the line starts red and turns blue by smoothly changing the color of the pixels as the line is scan-converted. Same for the curves, starting as one color and moving to the end color over the full length of the curve.
+
+You can gain extra credit by adding a color picker (on screen) that picks a color and then selects a point (start of end of the curve or line) and changes the color. At which point, the color of the complete line or curve is updated.
+
+Points are given as follows: Drawing line segments in any direction from two inputs (25pts) To draw the curve to the screen, you will need to compute the curve correctly (25pts) and break each curve input line segments to draw (15 pts). You should decide how many segments are needed for the curve to look smooth. For each curve or line the random color assigned at the beginning and end is interpolated to create colored drawings (15 pts). Your program can keep drawing additional curves and lines until the user clears the screen (10pts) You get up to 20 pts extra by adding color selection.
+
+To differentiate between lines and modes, a simple input key for 'l' (lines) or 'c' (curves) and the clear screen happens when the 'e' (erase) key is pressed.
+
+For the color picker, you can choose the selected area near the start/end points so the points can be selected with ease. If the areas around two or more points overlap, just choose which point will be selected.
+
+Getting started
+
+A starting program and makefile are provided for you. They are tar'ed in the link here. To un-tar the file save it and place it in the directory of your choice, then type: tar -xvf assn1.tar
+
+The program can be compiled by typing "make" and opens a blank OpenGL window, showing the grid 0 to 500 in x and y with the origin in the lower left corner, click around on the grid and the last pixel touched is lit up. This program includes a fair amount of structure and helpful starting functions. Use this program to interpret mouse input, reading the keybindings described above, etc.
+
+Also, IMPORTANTLY, the start program includes a function called write_pixel, you will use this to interface with OpenGL, meaning you should not make any explicit GL calls in the program on your own. All GL functionality has been taken care of in the start program. You will not receive credit for using GL calls to draw lines or curves.
+
+Remember, document your code and be neat (10 points). You may discuss the high-level concepts but you must write your own program, do not share code. Be cautious of your printed-out code (used for debugging) as well, if someone copies your "thrown out" program, you will be held responsible for cheating. Finally, your code must be written in C and/or C++ and run on the SoC linux machines (e.g. those in McAdams 110) by typing "./assn1" at the shell command prompt (after compile).
+
+Good Luck!

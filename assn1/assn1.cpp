@@ -55,6 +55,14 @@ struct Point
 		this->y = rhs.y;
 		return *this;
 	}
+	bool operator!=(const Point& rhs)
+	{
+		if (this->x != rhs.x)
+			return true;
+		if (this->y != rhs.y)
+			return true;
+		return false;
+	}
 	void replacePoints(const int& _x, const int& _y)
 	{
 		this->x = _x;
@@ -64,6 +72,8 @@ struct Point
 
 //a buffer of all the previous points ... now I can draw based solely on position in buffer
 std::vector<Point> listOfPoints;
+//to draw separate curves
+std::vector<int> indexes;
 
 /*
 Connects two points in space
@@ -71,6 +81,36 @@ Connects two points in space
 struct Line
 {
 	static bool isToggled;
+
+	static void draw(const Point& a, Point& b)
+	{
+		//points to be drawn
+		float x = a.x;
+		float y = b.y;
+		
+		//connect old x,y -> new x,y
+		//y = (Y2-Y1)/(X2-X1)x + b
+
+
+		//calculate the number of steps....
+		int steps = abs(b.x - a.x) > abs(b.y - a.y) ? 
+					abs(b.x - a.x) : 
+					abs(b.y - a.y);
+
+		
+		//calculate increment values
+		float changeX = (b.x - a.x)/(float)steps;
+		float changeY = (b.y - a.y)/(float)steps;
+
+		for (int i = 0; i <= steps; ++i)
+		{
+			write_pixel(x,y,1); //temp intensity COLOR GOES HERE
+
+			//decide next pixel, the casting to an int decides the rounding
+			x += changeX;
+			y += changeY;
+		}
+	}
 
 	static void draw(const int& pos)
 	{
@@ -131,10 +171,13 @@ struct BezierCurve : public Curve
 
 		//decide increment
 
-		for(double i = 0; i <= 1; i+=.01)
+		for(float t = 0; t < 1; t+=.01)
 		{
 			//https://buildingvts.com/mathematical-intuition-behind-bezier-curves-2ea4e9645681
-			newPoint.x = //function
+			newPoint.x = pow(1.0-t,3.0)*p0.x + 3.0*pow(1.0-t,2.0)*t*p1.x + 3.0*(1-t)*pow(t,2.0)*p2.x + pow(t,3.0)*p3.x;
+			newPoint.y = pow(1.0-t,3.0)*p0.y + 3.0*pow(1.0-t,2.0)*t*p1.y + 3.0*(1-t)*pow(t,2.0)*p2.y + pow(t,3.0)*p3.y;
+			Line::draw(newPoint, lastPoint);
+			lastPoint = newPoint;
 		}
 
 	}
@@ -199,12 +242,33 @@ void display ( void )   // Create The Display Function
 
   // CALL YOUR CODE HERE
   int pos = listOfPoints.size()-1;
+  static int lastPos = 4;
   if (listOfPoints.size() >= 2 && Line::isToggled)
 		for (; pos > 0; --pos)
 			Line::draw(pos);
-  else if (listOfPoints.size() >= 4 && BezierCurve::isToggled)
-		for (; pos > 0; --pos)
-			BezierCurve::draw(pos);
+  if (listOfPoints.size() >= 4  && BezierCurve::isToggled)
+  {
+	
+	if (listOfPoints.size()%4==0)
+		if (pos != lastPos)
+			lastPos = listOfPoints.size();
+	
+	for(int i = lastPos; i >= 4; i-=4)
+		BezierCurve::draw(i-1);
+  }
+  
+  /*
+  {
+		//for (; pos > 3; --pos)
+		if (listOfPoints.size()%4==0)
+			if (indexes.empty() || pos != indexes[indexes.size()-1])
+				indexes.push_back(pos);
+		for (unsigned long int i = 0; i < indexes.size(); ++i)
+			BezierCurve::draw(indexes[i]);
+
+		//std::cout << indexes.size() << "\n";
+  }
+  */
 
   glutSwapBuffers();                                      // Draw Frame Buffer 
 }
@@ -236,8 +300,7 @@ void mouse(int button, int state, int x, int y)
 		listOfPoints.emplace_back(Point(x,y));
 
 	//add to point buffer if new point
-	if (x != listOfPoints[listOfPoints.size()-1].x ||
-		y != listOfPoints[listOfPoints.size()-1].y)
+	if (Point(x,y) != listOfPoints[listOfPoints.size()-1])
 		listOfPoints.emplace_back(Point(x,y));
 	
 }
@@ -251,12 +314,22 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 			exit ( 0 );   // Exit The Program
 			break;        
 	        case 'e':             // stub for new screen
-		        init_window();
-			break;
+			{
+		        glClearColor(0.0,0.0,0.0,0.0);
+				glClear(GL_COLOR_BUFFER_BIT);
+			} break;
 			case 'l':
+			{
 				Line::isToggled = true;
 				if (BezierCurve::isToggled)
 					BezierCurve::isToggled = false;
+			} break;
+			case 'c':
+			{
+				BezierCurve::isToggled = true;
+				if (Line::isToggled)
+					Line::isToggled = false;
+			} break;
 		default:       
 			break;
 	}

@@ -16,14 +16,13 @@
 #include <vector>
 #include <GL/glut.h>   // The GL Utility Toolkit (Glut) Header
 #include <iostream>
+#include <map>
+#include <time.h>
 
 #define WIDTH 500
 #define HEIGHT 500
 
 int x_last,y_last;
-
-//forward declare
-void write_pixel(int x, int y, double intensity);
 
 /*
 Representation of a color
@@ -35,8 +34,47 @@ struct Color
 	double b;
 	Color(double _r, double _g, double _b) : r(_r), g(_g), b(_b) {}
 	Color() : r(1.0), g(1.0), b(1.0) {}
+	void update(double _r, double _g, double _b) { r = _r; g = _g; b = _b; }
+	void randomize()
+	{
+		srand(time(NULL));
+		this->r = (double)(rand()* (1.0 - .01)) / RAND_MAX;
+		this->g = (double)(rand()* (1.0 - .01)) / RAND_MAX;
+		this->b = (double)(rand()* (1.0 - .01)) / RAND_MAX;
+	}
+	Color operator-(const Color& rhs) const
+	{
+		Color toBeReturned;
+		toBeReturned.r -= rhs.r;
+		toBeReturned.g -= rhs.g;
+		toBeReturned.b -= rhs.b;
+		return toBeReturned;
+	}
+	Color operator+(const Color& rhs) const
+	{
+		Color toBeReturned;
+		toBeReturned.r += rhs.r;
+		toBeReturned.g += rhs.g;
+		toBeReturned.b += rhs.b;
+		return toBeReturned;
+	}
+	Color operator/(const int& rhs)
+	{
+		Color toBeReturned;
+		toBeReturned.r = toBeReturned.r/(double)rhs;
+		toBeReturned.g = toBeReturned.g/(double)rhs;
+		toBeReturned.b = toBeReturned.b/(double)rhs;
+		return toBeReturned;
+	}
+	bool operator==(const Color& rhs)
+	{
+		return (this->r == rhs.r && this->g == rhs.g && this->b == rhs.b);
+	}
 	//uint8_t a;
 };
+
+//forward declare
+void write_pixel(int x, int y, Color c);
 
 /*
 Representation of a point
@@ -57,11 +95,21 @@ struct Point
 	}
 	bool operator!=(const Point& rhs)
 	{
-		if (this->x != rhs.x)
-			return true;
-		if (this->y != rhs.y)
+		if (this->x != rhs.x || this->y != rhs.y)
 			return true;
 		return false;
+	}
+	bool operator<(const Point& rhs) const
+	{
+		if (this->x < rhs.x) return true;
+		else if (this->x > rhs.x) return false;
+		else return (this->y < rhs.y);
+	}
+	bool operator>(const Point& rhs) const
+	{
+		if (this->x > rhs.x) return true;
+		else if (this->x < rhs.x) return false;
+		else return (this->y > rhs.y);
 	}
 	void replacePoints(const int& _x, const int& _y)
 	{
@@ -74,6 +122,8 @@ struct Point
 std::vector<Point> listOfPoints;
 //to draw separate curves
 std::vector<int> indexes;
+//last picked color
+Color selectedColor(1.0,1.0,1.0);
 
 /*
 Connects two points in space
@@ -82,7 +132,7 @@ struct Line
 {
 	static bool isToggled;
 
-	static void draw(const Point& a, Point& b)
+	static void draw(const Point& a, const Point& b)
 	{
 		//points to be drawn
 		float x = a.x;
@@ -97,14 +147,15 @@ struct Line
 					abs(b.x - a.x) : 
 					abs(b.y - a.y);
 
-		
+		Color incrementer = b.c - a.c;
+		incrementer = incrementer /(double) steps;
 		//calculate increment values
 		float changeX = (b.x - a.x)/(float)steps;
 		float changeY = (b.y - a.y)/(float)steps;
 
 		for (int i = 0; i <= steps; ++i)
 		{
-			write_pixel(x,y,1); //temp intensity COLOR GOES HERE
+			write_pixel(x,y,b.c+incrementer); //temp intensity COLOR GOES HERE
 
 			//decide next pixel, the casting to an int decides the rounding
 			x += changeX;
@@ -134,7 +185,7 @@ struct Line
 
 		for (int i = 0; i <= steps; ++i)
 		{
-			write_pixel(x,y,1); //temp intensity COLOR GOES HERE
+			write_pixel(x,y,selectedColor); //temp intensity COLOR GOES HERE
 
 			//decide next pixel, the casting to an int decides the rounding
 			x += changeX;
@@ -173,7 +224,6 @@ struct BezierCurve : public Curve
 
 		for(float t = 0; t < 1; t+=.01)
 		{
-			//https://buildingvts.com/mathematical-intuition-behind-bezier-curves-2ea4e9645681
 			newPoint.x = pow(1.0-t,3.0)*p0.x + 3.0*pow(1.0-t,2.0)*t*p1.x + 3.0*(1-t)*pow(t,2.0)*p2.x + pow(t,3.0)*p3.x;
 			newPoint.y = pow(1.0-t,3.0)*p0.y + 3.0*pow(1.0-t,2.0)*t*p1.y + 3.0*(1-t)*pow(t,2.0)*p2.y + pow(t,3.0)*p3.y;
 			Line::draw(newPoint, lastPoint);
@@ -185,22 +235,112 @@ struct BezierCurve : public Curve
 
 class ColorPicker
 {
-	std::vector<Color> palette;
+	std::map<Point, Color> palette;
 
 public:
 	static bool isToggled;
 	ColorPicker() {}
 	void draw()
 	{
+		double inc = .025;
+		bool useRed = false;
+		bool useGreen = false;
+		bool useBlue = false;
+		double r = 0.0;
+		double g = 0.0;
+		double b = 0.0;
+
+		/*
 		//draw a circle, each pixel should be a different color
+		for(int i = 0; i < 255; ++i)
+			for(int u = 0; u < 255; ++u)
+			{
+			if (r < 1.0 && !useRed) r+=inc;
+			else if (g < 1.0 && !useGreen)
+			{ 
+				g+=inc;
+				r = 0;
+				useRed = true;
+			}
+			else if (b < 1.0 && !useBlue)
+			{
+				b += inc;
+				g = 0;
+				useGreen = true;
+			}
+
+			else if (useRed && useGreen && r < 1.0)
+				while(r != 1.0)
+				{
+					g += inc;
+
+				}
+
+			//u wanna make this a pair operator < > point
+			*/
+			int x = 0;
+			int y = 0;
+			const int max = 250;
+			while(r < 1.0)
+			{
+				palette.insert(std::pair<Point, Color>(Point(x,y), Color(r,g,b)));
+				write_pixel(x, y, Color(r,g,b));
+				/*
+				if (y < max) ++y;
+				else
+				{
+					++x;
+					y = 0;
+				}
+				*/
+				r+=inc;
+				g = 0;
+				while(g < 1.0)
+				{
+					palette.insert(std::pair<Point, Color>(Point(x,y), Color(r,g,b)));
+					write_pixel(x, y, Color(r,g,b));
+					/*
+					if (y < max) ++y;
+					else
+					{
+						++x;
+						y = 0;
+					}
+					*/
+					g+=inc;
+					b = 0;
+					while(b < 1.0)
+					{
+						palette.insert(std::pair<Point, Color>(Point(x,y), Color(r,g,b)));
+						write_pixel(x, y, Color(r,g,b));
+						if (y < max) ++y;
+						else
+						{
+							++x;
+							y = 0;
+						}
+						b+=inc;
+					}
+				}
+			}
+			//palette.insert(std::pair<Point, Color>(Point(i,u), Color(r,g,b)));
+			//write_pixel(i, u, Color(r,g,b));
+			//}
+
 	}
 
-	Color returnColor(Point clickedPos)
+	Color updateColor(Point clickedPos)
 	{
 		//check the point in the circle, return the color
+		//selectedColor.update()
+		if (this->palette.find(clickedPos)!=this->palette.end())
+			return palette[clickedPos];
+		else return selectedColor;
 	}
 };
 
+//Color picker gui
+ColorPicker cp;
 bool Line::isToggled = false;
 bool BezierCurve::isToggled = false;
 bool ColorPicker::isToggled = false;
@@ -219,12 +359,12 @@ void init_window()
 
 /***************************************************************************/
 
-void write_pixel(int x, int y, double intensity)
+void write_pixel(int x, int y, Color c)
                                          /* Turn on the pixel found at x,y */
 {
 
         //glColor3f (intensity, intensity, intensity);    
-		glColor3f(.5, .3, .1);             
+		glColor3f(c.r, c.g, c.b);             
         glBegin(GL_POINTS);
            glVertex3i( x, y, 0);
         glEnd();	
@@ -238,11 +378,12 @@ void display ( void )   // Create The Display Function
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	      // Clear Screen 
 
   //draw a pixel at mouse pos
-  write_pixel(x_last,y_last,1.0);
+  write_pixel(x_last,y_last,selectedColor);
 
   // CALL YOUR CODE HERE
   int pos = listOfPoints.size()-1;
   static int lastPos = 4;
+
   if (listOfPoints.size() >= 2 && Line::isToggled)
 		for (; pos > 0; --pos)
 			Line::draw(pos);
@@ -257,6 +398,9 @@ void display ( void )   // Create The Display Function
 		BezierCurve::draw(i-1);
   }
   
+  if (ColorPicker::isToggled)
+  	cp.draw();
+
   /*
   {
 		//for (; pos > 3; --pos)
@@ -283,25 +427,45 @@ void mouse(int button, int state, int x, int y)
         static int oldx = 0;
         static int oldy = 0;
 	int mag;
-	
+	Color oldColor = selectedColor;
+
 	y *= -1;  //align y with mouse
 	y += 500; //ignore 
 	mag = (oldx - x)*(oldx - x) + (oldy - y)*(oldy - y);
 	if (mag > 20) {
 		printf(" x,y is (%d,%d)\n", x,y);
+
+	//if the clicked position is in the wheel, update the color and don't count as a point on the grid
+	if (ColorPicker::isToggled)
+	{
+		selectedColor = cp.updateColor(Point(x,y));
+
+	std::cout << "Color: " << selectedColor.r << " " << selectedColor.g << "  " << selectedColor.b << "\n";
+	}	
+	if (selectedColor == oldColor)
+	{
+		selectedColor.randomize();
+		//add to point buffer if empty
+	if (listOfPoints.empty())
+		listOfPoints.emplace_back(Point(x,y));
+
+	//add to point buffer if new point
+	
+	//if (Point(x,y) != listOfPoints[listOfPoints.size()-1])
+	else
+		listOfPoints.emplace_back(Point(x,y,selectedColor));
+	}
+	
 	}
 	oldx = x;
 	oldy = y;
 	x_last = x;
 	y_last = y;
 
-	//add to point buffer if empty
-	if (listOfPoints.empty())
-		listOfPoints.emplace_back(Point(x,y));
+	
 
-	//add to point buffer if new point
-	if (Point(x,y) != listOfPoints[listOfPoints.size()-1])
-		listOfPoints.emplace_back(Point(x,y));
+	//std::cout << listOfPoints.size() << " " << listOfPoints[listOfPoints.size()-1].x << " " << listOfPoints[listOfPoints.size()-1].y << "\n";
+
 	
 }
  
@@ -315,8 +479,8 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 			break;        
 	        case 'e':             // stub for new screen
 			{
-		        glClearColor(0.0,0.0,0.0,0.0);
 				glClear(GL_COLOR_BUFFER_BIT);
+				listOfPoints.clear();
 			} break;
 			case 'l':
 			{
@@ -330,6 +494,9 @@ void keyboard ( unsigned char key, int x, int y )  // Create Keyboard Function
 				if (Line::isToggled)
 					Line::isToggled = false;
 			} break;
+			case 'r':
+				ColorPicker::isToggled = !ColorPicker::isToggled;
+			break;
 		default:       
 			break;
 	}

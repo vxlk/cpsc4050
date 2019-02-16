@@ -66,6 +66,14 @@ struct Color
 		toBeReturned.b = toBeReturned.b/(double)rhs;
 		return toBeReturned;
 	}
+	Color operator*(const double& rhs)
+	{
+		Color toBeReturned;
+		toBeReturned.r = toBeReturned.r*(double)rhs;
+		toBeReturned.g = toBeReturned.g*(double)rhs;
+		toBeReturned.b = toBeReturned.b*(double)rhs;
+		return toBeReturned;
+	}
 	bool operator==(const Color& rhs)
 	{
 		return (this->r == rhs.r && this->g == rhs.g && this->b == rhs.b);
@@ -136,7 +144,7 @@ struct Line
 	{
 		//points to be drawn
 		float x = a.x;
-		float y = b.y;
+		float y = a.y; //b
 		
 		//connect old x,y -> new x,y
 		//y = (Y2-Y1)/(X2-X1)x + b
@@ -147,15 +155,24 @@ struct Line
 					abs(b.x - a.x) : 
 					abs(b.y - a.y);
 
+		/*
 		Color incrementer = b.c - a.c;
 		incrementer = incrementer /(double) steps;
+		*/
+		Color pixelColor;
+		
 		//calculate increment values
 		float changeX = (b.x - a.x)/(float)steps;
 		float changeY = (b.y - a.y)/(float)steps;
 
 		for (int i = 0; i <= steps; ++i)
 		{
-			write_pixel(x,y,b.c+incrementer); //temp intensity COLOR GOES HERE
+			double u = double(i)/(steps);
+			pixelColor.r = a.c.r * (1.0 - u) + b.c.r * u;
+			pixelColor.g = a.c.g * (1.0 - u) + b.c.g * u;
+			pixelColor.b = a.c.b * (1.0 - u) + b.c.b * u;
+			//std::cout << pixelColor.r << " " << pixelColor.g << " " << pixelColor.b << "\n";
+			write_pixel(x,y,pixelColor); //temp intensity COLOR GOES HERE
 
 			//decide next pixel, the casting to an int decides the rounding
 			x += changeX;
@@ -182,10 +199,17 @@ struct Line
 		//calculate increment values
 		float changeX = (listOfPoints[pos-1].x - listOfPoints[pos].x)/(float)steps;
 		float changeY = (listOfPoints[pos-1].y - listOfPoints[pos].y)/(float)steps;
-
+		Point a = listOfPoints[pos];
+		Point b = listOfPoints[pos-1];
+		Color pixelColor;
 		for (int i = 0; i <= steps; ++i)
 		{
-			write_pixel(x,y,selectedColor); //temp intensity COLOR GOES HERE
+			double u = double(i)/(steps);
+			pixelColor.r = a.c.r * (1.0 - u) + b.c.r * u;
+			pixelColor.g = a.c.g * (1.0 - u) + b.c.g * u;
+			pixelColor.b = a.c.b * (1.0 - u) + b.c.b * u;
+			//std::cout << pixelColor.r << " " << pixelColor.g << " " << pixelColor.b << "\n";
+			write_pixel(x,y,pixelColor); //temp intensity COLOR GOES HERE
 
 			//decide next pixel, the casting to an int decides the rounding
 			x += changeX;
@@ -385,8 +409,14 @@ void display ( void )   // Create The Display Function
   static int lastPos = 4;
 
   if (listOfPoints.size() >= 2 && Line::isToggled)
-		for (; pos > 0; --pos)
-			Line::draw(pos);
+  {
+		if (listOfPoints.size()%2==0)
+		if (pos != lastPos)
+			lastPos = listOfPoints.size();
+	
+	for(int i = lastPos; i >= 2; i-=2)
+			Line::draw(i-1);
+  }
   if (listOfPoints.size() >= 4  && BezierCurve::isToggled)
   {
 	
